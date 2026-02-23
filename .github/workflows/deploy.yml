@@ -35,3 +35,33 @@ jobs:
       # Create the production 'dist' folder
       - name: Build project
         run: npm run build
+  # This is our new Deployment job
+  deploy:
+    # This ensures deployment ONLY happens if build-and-test succeeds
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. We need to checkout the code again to get the files
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. We must build it again (or use artifacts) to get the 'dist' folder
+      - name: Install and Build
+        run: |
+          npm install
+          npm run build
+
+      # 3. Use an Action to securely copy the 'dist' folder to EC2
+      - name: Deploy to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          # Source is the folder Vite creates
+          source: "dist/*"
+          # Target is where Nginx looks for website files
+          target: "/var/www/html"
+          # This removes the 'dist/' prefix so files land directly in /html
+          strip_components: 1
